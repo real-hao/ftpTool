@@ -2,7 +2,7 @@
  * @Author: Hao
  * @Date: 2021-02-25 16:31:47
  * @LastEditors: Hao
- * @LastEditTime: 2021-02-26 12:49:18
+ * @LastEditTime: 2021-02-26 18:43:12
  * @Description: 
  * @FilePath: /ftptool/ftptool.c
  */
@@ -249,9 +249,11 @@ static CommandType parseCommand(char* command, char* param){
 }
 
 static void callback(long readSize, long totalSize, char* fileName){
-    long process = readSize * 100 / totalSize;
-    char bar[process / 2];
-    memset(bar, '#', process / 2);
+    long process = (readSize*1.0 / totalSize) * 100;
+    int barSize = (process+2) / 2;
+    char bar[barSize];
+    memset(bar, '#', barSize);
+    bar[barSize - 1] = '\0';
     printf("\r%s [%ldKB/%ldKB] %ld%% %s", fileName, readSize, totalSize, process, bar);
     fflush(stdout);
     if(process >= 100){
@@ -308,7 +310,7 @@ static SocketStatus sendData(int fd, char* path, void(*callback)(long readSize, 
         }
         readSize += rc;
         callback(readSize, totalSize, path);
-    }while(rc == MAXSIZE_BUFFER);
+    }while(readSize < totalSize);
     fclose(fp);
     if(readSize != totalSize){
         return SOCKET_SEND_ERROR;
@@ -350,7 +352,7 @@ static SocketStatus receiveData(int fd, char* fileName, void(*callback)(long rea
             }
             readSize += rc;
             if(fp != stdout) callback(readSize, totalSize, fileName);
-        }while(rc == MAXSIZE_BUFFER);
+        }while(readSize < totalSize);
     }
     if(fp != stdout){
         fclose(fp);
