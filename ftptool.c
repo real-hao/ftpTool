@@ -2,7 +2,7 @@
  * @Author: Hao
  * @Date: 2021-02-25 16:31:47
  * @LastEditors: Hao
- * @LastEditTime: 2021-02-25 23:36:28
+ * @LastEditTime: 2021-02-26 12:49:18
  * @Description: 
  * @FilePath: /ftptool/ftptool.c
  */
@@ -32,7 +32,6 @@
 #include <pthread.h>
 #include "ftptool.h"
 
-#define MAXSIZE_COMMAND 255+5
 #define MAXSIZE_BUFFER 4096
 #define MAXSIZE_LONG 8+1
 
@@ -62,17 +61,28 @@ typedef enum tips{
 static CommandType parseCommand(char* command, char* param);
 static SocketStatus sendCommand(int fd, char* source);
 static SocketStatus receiveCommand(int fd, char* source);
-static SocketStatus sendData(int fd, char* path, void(*callback)(int readSize, int totalSize, char* fileName));
-static SocketStatus receiveData(int fd, char* fileName, void(*callback)(int readSize, int totalSize, char* fileName));
+static SocketStatus sendData(int fd, char* path, void(*callback)(long readSize, long totalSize, char* fileName));
+static SocketStatus receiveData(int fd, char* fileName, void(*callback)(long readSize, long totalSize, char* fileName));
 static void printSocketStatus(SocketStatus statusCode);
-static void callback(int readSize, int totalSize, char* fileName);
+static void callback(long readSize, long totalSize, char* fileName);
 static void printTips(Tips code);
 
-extern TransactionResult execTransaction(char* ip, int port, char* input){
+extern TransactionResult execTransaction(char* ip, int port, char* input, int obj){
     char param[MAXSIZE_COMMAND];
     CommandType cmdTyp = parseCommand(input, param);
     if(cmdTyp == CMD_ERROR){
         return INPUT_FORMAT_EXCEPTION;
+    }
+    if(obj == OBJ_LOCAL && (cmdTyp == CMD_CHDIR || cmdTyp == CMD_RM)){
+        if(cmdTyp == CMD_CHDIR){
+            chdir(param);
+        }else{
+            system(input);
+        }
+        system("pwd");
+        puts("----------------------------------------");
+        system("ls -a");
+        return TRANSACTION_DONE_OK;
     }
     int clnt_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(clnt_fd < 0){
@@ -146,11 +156,15 @@ static void* transactionThread(void* arg){
         sktSta = receiveData(fd, param, callback);
         break;
     case CMD_CHDIR:
-        chdir(param);
     case CMD_RM:
-        system(command);
+        if(cmdTyp == CMD_CHDIR){
+            chdir(param);
+        }else{
+            system(command);
+        }
         system("pwd > .tmp");
-        system("ls >> .tmp");
+        system("echo ---------------------------------------- >> .tmp");
+        system("ls -a >> .tmp");
         sktSta = sendData(fd, ".tmp", callback);
         system("rm .tmp");
         break;
@@ -227,12 +241,22 @@ static CommandType parseCommand(char* command, char* param){
     }
     if(param != NULL && ret != CMD_ERROR){
         strcpy(param, strstr(command, " ") + 1);
+        if(strlen(param) == 0){
+            ret = CMD_ERROR;
+        }
     }
     return ret;
 }
 
-static void callback(int readSize, int totalSize, char* fileName){
-    printf("%s -> %dKB/%dKB\n", fileName, readSize, totalSize);
+static void callback(long readSize, long totalSize, char* fileName){
+    long process = readSize * 100 / totalSize;
+    char bar[process / 2];
+    memset(bar, '#', process / 2);
+    printf("\r%s [%ldKB/%ldKB] %ld%% %s", fileName, readSize, totalSize, process, bar);
+    fflush(stdout);
+    if(process >= 100){
+        putchar('\n');
+    }
 }
 
 static SocketStatus sendCommand(int fd, char* source){
@@ -251,7 +275,7 @@ static SocketStatus receiveCommand(int fd, char* source){
     return SOCKET_OK;
 }
 
-static SocketStatus sendData(int fd, char* path, void(*callback)(int readSize, int totalSize, char* fileName)){
+static SocketStatus sendData(int fd, char* path, void(*callback)(long readSize, long totalSize, char* fileName)){
     FILE* fp = fopen(path, "rb");
     char buf[MAXSIZE_BUFFER];
     memset(buf, '\0', MAXSIZE_BUFFER);
@@ -292,7 +316,7 @@ static SocketStatus sendData(int fd, char* path, void(*callback)(int readSize, i
     return SOCKET_OK;
 }
 
-static SocketStatus receiveData(int fd, char* fileName, void(*callback)(int readSize, int totalSize, char* fileName)){
+static SocketStatus receiveData(int fd, char* fileName, void(*callback)(long readSize, long totalSize, char* fileName)){
     char buf[MAXSIZE_BUFFER];
     memset(buf, '\0', MAXSIZE_BUFFER);
     int rc;
@@ -328,7 +352,7 @@ static SocketStatus receiveData(int fd, char* fileName, void(*callback)(int read
             if(fp != stdout) callback(readSize, totalSize, fileName);
         }while(rc == MAXSIZE_BUFFER);
     }
-    if(fp != NULL){
+    if(fp != stdout){
         fclose(fp);
     }
     if(readSize != totalSize){

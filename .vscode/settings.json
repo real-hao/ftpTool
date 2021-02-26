@@ -1,5 +1,8 @@
 {
     "oneDarkPro.bold": true,
     "oneDarkPro.vivid": true,
-    "oneDarkPro.editorTheme": "vscode"
+    "oneDarkPro.editorTheme": "vscode",
+    "files.associations": {
+        "ftptool.h": "c"
+    }
 }
