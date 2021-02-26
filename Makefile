@@ -25,10 +25,14 @@ setup : setup.c ftptool.c ftptool.h
 .PHONY : clean install uninstall
 
 install :
+	cp man $(target).1
+	gzip $(target).1
 	mv $(target) $(path)
+	mv $(target).1.gz /usr/local/share/man/man1
 
 uninstall :
 	rm $(path)/$(target)
+	rm /usr/local/share/man/man1/$(target).1
 
 clean :
 	rm $(target)

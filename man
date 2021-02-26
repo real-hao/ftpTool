@@ -1,0 +1,24 @@
+.TH helpme "1" "Feb.2021" "ftptool" "User Command"
+.SH "描述 ftptool"
+.TP
+这是一个非常无聊的程序，如果你考虑在一台设备上随时上传、拉取、查看另一台设备上的任意文件，那么你可以考虑使用它。
+.SH 详细说明
+.TP
+.B \--server
+以server身份启动程序。
+.TP
+.B \--client
+以client身份启动程序。
+.SS "自定义参数"
+.TP
+.I \.ip
+为client设置ip，这是以client方式运行的必须项。
+.TP
+.I \.port
+设置端口，如 --client 127.0.0.1 8989（port设置为8989）。
+.TP
+.I \.maxConnect
+为server设置最大连接数，如 --server 10 8989（port设置为8989，最大可连接数量为10）。
+.HP
+如果没有指定一些非必要的参数，将按默认参数运行程序。
+
